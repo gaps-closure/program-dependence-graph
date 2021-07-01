@@ -122,14 +122,24 @@ void pdg::ProgramGraph::build(Module &M)
     {
       GraphNodeType node_type = GraphNodeType::INST_OTHER;
       if (isAnnotationCallInst(*inst_iter))
+      {
+        // errs() << "Inst: " <<  (*inst_iter).getOperand(1)) << "\n";
+        
+        // auto globalSenStr = cast<GlobalVariable>(cast<Instruction>((*inst_iter).getOperand(1))->getOperand(1));
+        // auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+        // Node *source = getNode(*(inst_iter->getOperand(0)));
+        // source->setAnno(anno.str()); 
         node_type = GraphNodeType::ANNO_VAR;
+      }
       if (isa<ReturnInst>(&*inst_iter))
         node_type = GraphNodeType::INST_RET;
-      if (isa<CallInst>(&*inst_iter))
+      if (isa<CallInst>(&*inst_iter) && !isAnnotationCallInst(*inst_iter))
         node_type = GraphNodeType::INST_FUNCALL;
       if (isa<BranchInst>(&*inst_iter))
         node_type = GraphNodeType::INST_BR;
       Node *n = new Node(*inst_iter, node_type);
+      Value *v = &*inst_iter;
+      errs() << "Added: " << v << "\n";
       _val_node_map.insert(std::pair<Value *, Node *>(&*inst_iter, n));
       func_w->addInst(*inst_iter);
       addNode(*n);
@@ -356,10 +366,12 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
         Node *n = getNode(*annotated_gv);
         if (n == nullptr)
         {
+          // couldn't this also be a module static variable?
           n = new Node(*annotated_gv, GraphNodeType::VAR_STATICALLOCGLOBALSCOPE);
           _val_node_map.insert(std::pair<Value *, Node *>(annotated_gv, n));
           addNode(*n);
         }
+        n->setAnno(anno.str());
         n->addNeighbor(*global_anno_node, EdgeType::ANNO_GLOBAL);
       }
     }
