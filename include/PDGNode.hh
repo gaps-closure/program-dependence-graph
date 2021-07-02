@@ -1,10 +1,13 @@
 #ifndef NODE_H_
 #define NODE_H_
 #include "LLVMEssentials.hh"
+#include <llvm/IR/DebugLoc.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include "PDGEdge.hh"
 #include "PDGEnums.hh"
 #include <set>
 #include <iterator>
+
 
 namespace pdg
 {
@@ -26,6 +29,10 @@ namespace pdg
       _is_visited = false;
       _func = nullptr;
       _node_di_type = nullptr;
+      node_count++;
+      node_ID = node_count;
+      _annotation = "None";
+      _line_number = -1;
     }
     Node(llvm::Value &v, GraphNodeType node_type)
     {
@@ -37,8 +44,31 @@ namespace pdg
       _node_type = node_type;
       _is_visited = false;
       _node_di_type = nullptr;
+      node_count++;
+      node_ID = node_count;
+      _annotation = "None";
+
+      if (llvm::isa<llvm::Instruction>(_val))
+      {
+        llvm::Instruction *instruction = llvm::dyn_cast<llvm::Instruction>(_val);
+        const llvm::DebugLoc &debugInfo = instruction->getDebugLoc();
+        llvm::errs() << "debug: " << debugInfo << "\n";
+        if(debugInfo) {
+          std::string directory = debugInfo->getDirectory();
+          std::string filePath = debugInfo->getFilename();
+          _line_number = debugInfo->getLine();
+          llvm::errs() << "line number: " << _line_number << "\n";
+        }
+      }
+      else
+      {
+        _line_number = -1;
+      }
     }
     
+    void setAnno(std::string new_anno) {  _annotation = new_anno; }
+    std::string getAnno() { return _annotation; }
+    unsigned int getNodeID()  { return node_ID;}
     void addInEdge(Edge &e) { _in_edge_set.insert(&e); }
     void addOutEdge(Edge &e) { _out_edge_set.insert(&e); }
     EdgeSet &getInEdgeSet() { return _in_edge_set; }
@@ -62,6 +92,7 @@ namespace pdg
     std::set<Node *> getOutNeighborsWithDepType(EdgeType edge_type);
     bool hasInNeighborWithEdgeType(Node &n, EdgeType edge_type);
     bool hasOutNeighborWithEdgeType(Node &n, EdgeType edge_type);
+    int getLineNumber() {return _line_number;};
     virtual ~Node() = default;
 
   protected:
@@ -72,6 +103,10 @@ namespace pdg
     EdgeSet _out_edge_set;
     GraphNodeType _node_type;
     llvm::DIType *_node_di_type;
+    static unsigned int node_count;
+    unsigned int node_ID;
+    std::string _annotation;
+    int _line_number;
   };
 
   // used to iterate through all neighbors (used in dot pdg printer)
