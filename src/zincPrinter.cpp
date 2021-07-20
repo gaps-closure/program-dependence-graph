@@ -376,10 +376,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   {
     for(auto const& i : outputEnumsPDGNode[id]) {
       std::string valueStr;
-
+      std::string nameStr;
       if (nodeID2Node[i]->getValue() == nullptr)
       {
         valueStr = "No Value";
+        nameStr  = "None";
       }
       else
       {
@@ -391,10 +392,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
             valueStr.replace(sz, 1, "\"\"");
             sz += 2;
         }
+
+        nameStr  = nodeID2Node[i]->getValue()->getName();
       }
       
       dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << outputArrays["hasFunction"][index-1] << ", na, na, " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
-      node2line << index << ", " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
+      node2line << index << ", " << nameStr << ", " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
       index++;
     } 
   }
