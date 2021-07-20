@@ -11,12 +11,13 @@ namespace pdg
   public:
     FunctionWrapper(llvm::Function *func)
     {
+      llvm::errs() << "Checking for Function: " << *func << "\n";
       _func = func;
       for (auto arg_iter = _func->arg_begin(); arg_iter != _func->arg_end(); arg_iter++)
       {
         _arg_list.push_back(&*arg_iter);
       }
-      _entry_node = new Node(GraphNodeType::FUNC_ENTRY);
+      _entry_node = new Node(*func,GraphNodeType::FUNC_ENTRY);
       _entry_node->setFunc(*func);
     }
     llvm::Function *getFunc() const { return _func; }

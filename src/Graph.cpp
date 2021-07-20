@@ -111,7 +111,7 @@ void pdg::ProgramGraph::build(Module &M)
     addNode(*n);
   }
 
-  buildGlobalAnnotationNodes(M);
+  // buildGlobalAnnotationNodes(M);
 
   for (auto &F : M)
   {
@@ -127,8 +127,22 @@ void pdg::ProgramGraph::build(Module &M)
         
         // auto globalSenStr = cast<GlobalVariable>(cast<Instruction>((*inst_iter).getOperand(1))->getOperand(1));
         // auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
-        // Node *source = getNode(*(inst_iter->getOperand(0)));
-        // source->setAnno(anno.str()); 
+
+        ConstantExpr *ce = cast<ConstantExpr>((*inst_iter).getOperand(1));
+        if (ce) 
+        {
+          if (ce->getOpcode() == Instruction::GetElementPtr) 
+          {
+            if (GlobalVariable *globalSenStr = dyn_cast<GlobalVariable>(ce->getOperand(0))) 
+            {
+              auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+              Node *source = getNode(*(inst_iter->getOperand(0)));
+              source->setAnno(anno.str()); 
+            }
+          }
+        }
+
+        
         node_type = GraphNodeType::ANNO_VAR;
       }
       if (isa<ReturnInst>(&*inst_iter))
@@ -148,6 +162,7 @@ void pdg::ProgramGraph::build(Module &M)
     func_w->buildFormalTreesForRetVal();
     addFormalTreeNodesToGraph(*func_w);
     addNode(*func_w->getEntryNode());
+    _val_node_map.insert(std::pair<Value *, Node *>(&F, func_w->getEntryNode()));
     _func_wrapper_map.insert(std::make_pair(&F, func_w));
   }
 
@@ -175,6 +190,8 @@ void pdg::ProgramGraph::build(Module &M)
       _call_wrapper_map.insert(std::make_pair(ci, cw));
     }
   }
+
+  buildGlobalAnnotationNodes(M);
   _is_build = true;
 }
 
@@ -363,9 +380,11 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
       {
         auto globalSenStr = cast<GlobalVariable>(casted_struct->getOperand(1)->getOperand(0));
         auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+        llvm::errs() << "Checking for Global: " << *annotated_gv << "\n";
         Node *n = getNode(*annotated_gv);
         if (n == nullptr)
         {
+          llvm::errs() << "MAKING GLOBAL! \n ";
           // couldn't this also be a module static variable?
           n = new Node(*annotated_gv, GraphNodeType::VAR_STATICALLOCGLOBALSCOPE);
           _val_node_map.insert(std::pair<Value *, Node *>(annotated_gv, n));
@@ -376,4 +395,33 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
       }
     }
   }
+}
+
+void pdg::ProgramGraph::dumpNodeLineNumbers()
+{
+  std::ofstream outLineNumbers;
+  outLineNumbers.open ("nodes2linenumbers.txt");
+  for (auto node_iter = begin(); node_iter != end(); ++node_iter)
+  {
+    auto node = *node_iter;
+    if(node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+    {
+      llvm::Function *function = llvm::dyn_cast<llvm::Function>(node->getValue());
+      unsigned dbgKind = function->getContext().getMDKindID("dbg");
+      if (llvm::MDNode *Dbg = function->getMetadata(dbgKind)) 
+      {
+        
+        llvm::DebugLoc Loc(Dbg);
+        // filename = Loc.getDirectory().str() + "/" + Loc.getFilename().str();
+        int line_number = Loc.getLine();
+        outLineNumbers << "ID" << std::to_string(node->getNodeID()) << " : " << std::to_string(line_number) << "\n";
+      }
+    }
+    else
+    {
+      outLineNumbers << "ID" << std::to_string(node->getNodeID()) << " : " << std::to_string(node->getLineNumber()) << "\n";
+    }
+    
+  }
+  outLineNumbers.close();
 }
