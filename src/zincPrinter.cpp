@@ -35,26 +35,26 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::map<std::string,int> nodeID2index;
   
   std::vector<std::string> nodeOrder{
-    "Inst_FunCall",
+    "Inst_FunCall", 
     "Inst_Ret",
     "Inst_Br",
     "Inst_Other",
-    "Inst",
+    "Inst", // 4
     "VarNode_StaticGlobal",
     "VarNode_StaticModule",
     "VarNode_StaticFunction",
     "VarNode_StaticOther",
-    "VarNode",
-    "FunctionEntry",
+    "VarNode", // 9
+    "FunctionEntry", // 10
     "Param_FormalIn",
     "Param_FormalOut",
     "Param_ActualIn",
     "Param_ActualOut",
-    "Param",
+    "Param", // 15
     "Annotation_Var",
     "Annotation_Global",
     "Annotation_Other",
-    "Annotation"
+    "Annotation" // 19
   };
 
   std::vector<std::string> edgeOrder{
@@ -80,12 +80,14 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   };
 
   std::vector<std::string> arrayOrder{
+    "hasFunction",
     "hasSource",
-    "hasDest",
-    "hasFunction"
+    "hasDest",  
+    // "hasParamIdx",
     // "invForRet"
   };
 
+  std::vector<std::string> hasParamIdx;
 
   // initialize output
   outputEnumsPDGNode["Inst_FunCall"] = std::vector<std::string>();
@@ -341,8 +343,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   {
     if (class_idx == 4 || class_idx == 9 || class_idx == 15 || class_idx == 19)
     {
-      outFile << "int: " << id << "_start" << " = " << super_class_start << ";\n";
-      outFile << "int: " << id << "_end" << " = " << super_class_end << ";\n";
+      outFile  << id << "_start" << " = " << super_class_start << ";\n";
+      outFile  << id << "_end" << " = " << super_class_end << ";\n";
       super_class_start = super_class_end + 1;
       super_class_end = -1;
       class_idx++;
@@ -352,24 +354,31 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     int endIdx = index + outputEnumsPDGNode[id].size() -1;
     if (endIdx < index)
     {
-      outFile << "int: "  << id << "_start" << " = 0;\n";
-      outFile << "int: "  << id << "_end" << " = -1;\n";
+      outFile << id << "_start" << " = 0;\n";
+      outFile << id << "_end" << " = -1;\n";
     }
     else
     {
-      outFile << "int: "  << id << "_start" << " = " << index << ";\n";
-      outFile << "int: "  << id << "_end" << " = " << endIdx << ";\n";
+      outFile << id << "_start" << " = " << index << ";\n";
+      outFile << id << "_end" << " = " << endIdx << ";\n";
       // Need to progress to next set
       super_class_end = endIdx;
       max_node_idx = endIdx;
       index = endIdx + 1;
+      // fix for function entry since it does not have any subclasses
+      if (class_idx == 10)
+      {
+        super_class_start = super_class_end+1;
+      }
       
     }
     class_idx++;
   }
 
-  outFile << "int: PDGNode_start = 1;\n";
-  outFile << "int: PDGNode_end" << " = " << max_node_idx << ";\n";
+  outFile << "PDGNode_start = 1;\n";
+  outFile << "PDGNode_end" << " = " << max_node_idx << ";\n";
+  std::vector<bool> hasFuncAnno;
+
 
   index = 1;
   for(auto &id : nodeOrder)
@@ -395,8 +404,35 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
         nameStr  = nodeID2Node[i]->getValue()->getName();
       }
-      
-      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << outputArrays["hasFunction"][index-1] << ", na, na, " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
+
+      if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+      {
+        if(nodeID2Node[i]->getAnno() != "None")
+        {
+          hasFuncAnno.push_back(true);
+        }
+        else
+        {
+          hasFuncAnno.push_back(false);
+        }
+      }
+
+      if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::PARAM_FORMALIN || 
+         nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::PARAM_FORMALOUT ||
+         nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::PARAM_ACTUALIN ||
+         nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::PARAM_ACTUALOUT )
+      {
+        if(nodeID2Node[i]->getParamIdx() >= 0)
+        {
+          hasParamIdx.push_back(std::to_string(nodeID2Node[i]->getParamIdx()+1));
+        }
+        else
+        {
+          hasParamIdx.push_back(std::to_string(nodeID2Node[i]->getParamIdx()));
+        }
+      }
+
+      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << ", " << nodeID2Node[i]->getParamIdx() << "\n";
       node2line << index << ", " << nameStr << ", " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
       index++;
     } 
@@ -406,13 +442,13 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   class_idx = 0;
   super_class_start = 1;
   super_class_end = -1;
-  int max_edge_idx = 1;
+  int max_edge_idx = 1; 
   for(auto &id : edgeOrder)
   {
     if (class_idx == 5 || class_idx == 10 || class_idx == 14 || class_idx == 18)
     {
-      outFile << "int: "  << id << "_start" << " = " << super_class_start << ";\n";
-      outFile << "int: "  << id << "_end" << " = " << super_class_end << ";\n";
+      outFile << id << "_start" << " = " << super_class_start << ";\n";
+      outFile << id << "_end" << " = " << super_class_end << ";\n";
       super_class_start = super_class_end + 1;
       super_class_end = -1;
       class_idx++;
@@ -422,21 +458,21 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     
     if (endIdx < index)
     {
-      outFile << "int: "  << id << "_start" << " = 0;\n";
-      outFile << "int: "  << id << "_end" << " = -1;\n";
+      outFile << id << "_start" << " = 0;\n";
+      outFile << id << "_end" << " = -1;\n";
     }
     else
     {
-      outFile << "int: "  << id << "_start" << " = " << index << ";\n";
-      outFile << "int: "  << id << "_end" << " = " << endIdx << ";\n";
+      outFile << id << "_start" << " = " << index << ";\n";
+      outFile << id << "_end" << " = " << endIdx << ";\n";
       max_edge_idx = endIdx;
       super_class_end = endIdx;
       index = endIdx + 1;
     }
     class_idx++;
   }
-  outFile << "int: PDGEdge_start = 1;\n";
-  outFile << "int: PDGEdge_end" << " = " << max_edge_idx << ";\n";
+  outFile << "PDGEdge_start = 1;\n";
+  outFile << "PDGEdge_end" << " = " << max_edge_idx << ";\n";
 
   index = 1;
   for(auto &id : edgeOrder)
@@ -462,30 +498,102 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   for(auto &id : edgeOrder)
   {
     for(auto const& i : outputEnumsPDGEdge[id]) {
-      dbgFile << "Edge, " << index << ", " << id << ", " << i << ", na, na, " << outputArrays["hasSource"][index-1] << ", " << outputArrays["hasDest"][index-1] << ", na, na" << "\n";
+      dbgFile << "Edge, " << index << ", " << id << ", " << i << ", na, na, " << outputArrays["hasSource"][index-1] << ", " << outputArrays["hasDest"][index-1] << ", na, na, na" << "\n";
       index++;
     } 
   }
 
- 
+ std::vector<std::string> hasFunctionIndx;
+ for(auto &i : outputArrays["hasFunction"])
+ {
+   if (i == "1")
+   {
+     hasFunctionIndx.push_back("0");
+   }
+   else
+   {
+     hasFunctionIndx.push_back(std::to_string(nodeID2index[i]));
+   }
+   
+ }
+ outputArrays["hasFunction"] = hasFunctionIndx;
 
+  std::string out_string = "";
   for(auto &id : arrayOrder)
   {
     bool first = true;
-    
-      outFile << id << " = [ ";
-      for(auto const& i : outputArrays[id]) {
-        if (first)
-          outFile << i;
-        else 
-          outFile << ", " << i;
-        first = false;
+    int row_count = 0;
+    outFile << id << " = [";
+    for(auto const& i : outputArrays[id]) {
+      if(row_count % 20 == 0)
+      {
+        out_string += "\n";
       }
-       outFile << "];   \n";
+      out_string += i + ",";
+      
+      row_count++;
+    }
+    out_string.pop_back();
+    outFile << out_string << "\n];\n";
+    out_string = "";
   }
+
+  first = true;
+  int last_id = -1;
+  
+  out_string = "hasParamIdx = array1d(Param, [\n";
+  for(auto const& i : hasParamIdx) {
+    out_string += i + ",";
+
+    first = false;
+    last_id = std::stoi(i);
+  }
+    out_string.pop_back();
+    out_string += "\n]);\n";
+    outFile << out_string;
 
   //  std::ofstream outFileCle;
   // outFileCle.open ("init_cle.mzn");
+
+  out_string = " ";
+  outFile << "userAnnotatedFunction = array1d(FunctionEntry, [\n"; 
+  for(auto b: hasFuncAnno)
+  {
+    if(b)
+    {
+      out_string+="true,";
+    }
+    else
+    {
+      out_string+="false,";
+    }
+  }
+  out_string.pop_back();
+  outFile << out_string << "\n]);\n";
+
+  int maxParam = 3;
+  for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
+  {
+    auto node = *node_iter;
+    if (node->getNodeType() != pdg::GraphNodeType::FUNC_ENTRY)
+    {
+      continue;
+    }
+    llvm::Function* f = node->getFunc();
+    int numArgs = 0;
+    for (auto arg_iter = f->arg_begin(); arg_iter != f->arg_end(); arg_iter++)
+    {
+      numArgs++;
+    }
+    if(numArgs > maxParam)
+    {
+      errs() << *f << "\n";
+      maxParam = numArgs;
+    }
+  }
+
+  outFile << "MaxFuncParms = " <<  maxParam << ";\n";
+  
   
   for(auto &id : nodeOrder)
   {
@@ -493,10 +601,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       Node* node = nodeID2Node[i];
       if(node->getAnno() != "None")
       {
-        outFile <<  "constraint hasCle[" << nodeID2index[i] << "]=" << node->getAnno() << "; \n"; 
+        outFile <<  "constraint ::  \"TaintOnNodeIdx" << nodeID2index[i]  << "\" taint[" << nodeID2index[i] << "]=" << node->getAnno() << ";\n"; 
       }
     } 
   }
+
+
 
   
   // _PDG->dumpNodeLineNumbers();

@@ -35,6 +35,7 @@ namespace pdg
       _annotation = "None";
       _line_number = -1;
       _file_name = "Not Found";
+      _paramIdx = -1;
     }
     Node(llvm::Value &v, GraphNodeType node_type)
     {
@@ -51,6 +52,7 @@ namespace pdg
       node_count++;
       node_ID = node_count;
       _annotation = "None";
+      _paramIdx = -1;
 
       if (llvm::isa<llvm::Instruction>(_val) )
       {
@@ -87,6 +89,8 @@ namespace pdg
       }
     }
     
+    int getParamIdx() { return _paramIdx;}
+    void setParamIdx(int new_idx) { _paramIdx = new_idx;}
     void setAnno(std::string new_anno) {  _annotation = new_anno; }
     std::string getAnno() { return _annotation; }
     unsigned int getNodeID()  { return node_ID;}
@@ -130,6 +134,7 @@ namespace pdg
     std::string _annotation;
     int _line_number;
     std::string _file_name;
+    int _paramIdx;
   };
 
   // used to iterate through all neighbors (used in dot pdg printer)
