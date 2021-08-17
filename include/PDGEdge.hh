@@ -34,6 +34,7 @@ namespace pdg
 
     unsigned int getEdgeID()  { return edge_ID;}
     EdgeType getEdgeType() const { return _edge_type; }
+    void setEdgeType(EdgeType newEdgeType)  { _edge_type = newEdgeType; }
     Node *getSrcNode() const { return _source; }
     Node *getDstNode() const { return _dst; }
     bool operator<(const Edge &e) const

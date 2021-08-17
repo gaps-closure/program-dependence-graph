@@ -146,8 +146,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
     if (node->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
     {
-      llvm::Instruction* inst = dyn_cast<llvm::Instruction>(node->getValue());
-      if (isa<DbgInfoIntrinsic>(inst))
+      llvm::CallInst* inst = dyn_cast<llvm::CallInst>(node->getValue());
+      Function *fn = inst->getCalledFunction();
+      StringRef fn_name = fn->getName();
+      // skip LLVM intrinsics
+      if (fn_name.contains("llvm."))
       {
         continue;
       }
@@ -263,20 +266,34 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       getDstID << out_edge->getDstNode()->getNodeID();
       if (out_edge->getSrcNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
       {
-        llvm::Instruction* inst = dyn_cast<llvm::Instruction>(out_edge->getSrcNode()->getValue());
-        if (isa<DbgInfoIntrinsic>(inst))
+        llvm::CallInst* inst = dyn_cast<llvm::CallInst>(out_edge->getSrcNode()->getValue());
+        Function *fn = inst->getCalledFunction();
+        StringRef fn_name = fn->getName();
+        // skip LLVM intrinsics
+        if (fn_name.contains("llvm."))
+        {
+          continue;
+        }
+      }
+      
+
+      if (out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
+      {
+        llvm::CallInst* inst = dyn_cast<llvm::CallInst>(out_edge->getDstNode()->getValue());
+        Function *fn = inst->getCalledFunction();
+        StringRef fn_name = fn->getName();
+        // skip LLVM intrinsics
+        if (fn_name.contains("llvm."))
         {
           continue;
         }
       }
 
-       if (out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
+      if (out_edge->getSrcNode()->getNodeType() == pdg::GraphNodeType::ANNO_VAR || 
+          out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::ANNO_VAR 
+      )
       {
-        llvm::Instruction* inst = dyn_cast<llvm::Instruction>(out_edge->getDstNode()->getValue());
-        if (isa<DbgInfoIntrinsic>(inst))
-        {
-          continue;
-        }
+        out_edge->setEdgeType(pdg::EdgeType::ANNO_VAR);
       }
 
 
