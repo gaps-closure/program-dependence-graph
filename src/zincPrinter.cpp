@@ -147,12 +147,21 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     if (node->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
     {
       llvm::CallInst* inst = dyn_cast<llvm::CallInst>(node->getValue());
+      
       Function *fn = inst->getCalledFunction();
-      StringRef fn_name = fn->getName();
-      // skip LLVM intrinsics
-      if (fn_name.contains("llvm."))
+      // need to check why this could be null for an actuall callInst
+      if (fn != nullptr)
       {
-        continue;
+        StringRef fn_name = fn->getName();
+        // skip LLVM intrinsics
+        if (fn_name.contains("llvm."))
+        {
+          continue;
+        }
+      }
+      else
+      {
+        errs() << "Null Called Function: " << *inst << "\n";
       }
     }
 
@@ -268,24 +277,38 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       {
         llvm::CallInst* inst = dyn_cast<llvm::CallInst>(out_edge->getSrcNode()->getValue());
         Function *fn = inst->getCalledFunction();
-        StringRef fn_name = fn->getName();
-        // skip LLVM intrinsics
-        if (fn_name.contains("llvm."))
+        if (fn != nullptr)
         {
-          continue;
+          StringRef fn_name = fn->getName();
+          // skip LLVM intrinsics
+          if (fn_name.contains("llvm."))
+          {
+            continue;
+          }
         }
-      }
+        else
+        {
+          errs() << "Null Called Function: " << *inst << "\n";
+        }
+        }
       
 
       if (out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
       {
         llvm::CallInst* inst = dyn_cast<llvm::CallInst>(out_edge->getDstNode()->getValue());
         Function *fn = inst->getCalledFunction();
-        StringRef fn_name = fn->getName();
-        // skip LLVM intrinsics
-        if (fn_name.contains("llvm."))
+        if (fn != nullptr)
         {
-          continue;
+          StringRef fn_name = fn->getName();
+          // skip LLVM intrinsics
+          if (fn_name.contains("llvm."))
+          {
+            continue;
+          }
+        }
+        else
+        {
+          errs() << "Null Called Function: " << *inst << "\n";
         }
       }
 
