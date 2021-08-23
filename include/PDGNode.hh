@@ -67,7 +67,8 @@ namespace pdg
           llvm::errs() << "line number: " << _line_number << "\n";
         }
       }
-      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY )
+      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY
+      )
       {
           // llvm::Function *function = llvm::dyn_cast<llvm::Function>(_val);
           unsigned dbgKind = _func->getContext().getMDKindID("dbg");
@@ -82,12 +83,29 @@ namespace pdg
             _file_name = directory + "/" + filePath;
           }
       }
+      else if( node_type == pdg::GraphNodeType::VAR_STATICALLOCGLOBALSCOPE || 
+          node_type == pdg::GraphNodeType::VAR_STATICALLOCMODULESCOPE || 
+          node_type == pdg::GraphNodeType::VAR_STATICALLOCFUNCTIONSCOPE
+        )
+        {
+          llvm::SmallVector< llvm::DIGlobalVariableExpression *,4 >  GVs;
+          llvm::GlobalVariable *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(_val);
+          globalVar->getDebugInfo(GVs);
+          llvm::DIGlobalVariableExpression* dbgExpr =  GVs[0];
+          llvm::DIGlobalVariable* dbgGV =  dbgExpr->getVariable();
+          std::string directory = dbgGV->getDirectory();
+          std::string filePath = dbgGV->getFilename();
+          _line_number = dbgGV->getLine();
+          _file_name = directory + "/" + filePath;
+
+        }
       else
       {
         _line_number = -1;
         _file_name = "Not Found";
       }
     }
+
     
     int getParamIdx() { return _paramIdx;}
     void setParamIdx(int new_idx) { _paramIdx = new_idx;}
