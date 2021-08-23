@@ -472,8 +472,21 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
       }
 
-      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << ", " << nodeID2Node[i]->getParamIdx() << "\n";
-      node2line << index << ", " << nameStr << ", " << nodeID2Node[i]->getFileName()  << ", " << nodeID2Node[i]->getLineNumber() << "\n";
+      
+      std::string filename = nodeID2Node[i]->getFileName();
+      int lineNumber = nodeID2Node[i]->getLineNumber();
+      if (filename == "" || filename == "Not Found")
+      {
+        filename = nodeID2Node[outputArrays["hasFunction"][index-1]]->getFileName();
+      }
+      if (lineNumber = -1)
+      {
+        lineNumber = nodeID2Node[outputArrays["hasFunction"][index-1]]->getLineNumber();
+      }
+
+
+      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+      node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
     } 
   }
