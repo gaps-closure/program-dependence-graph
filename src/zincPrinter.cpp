@@ -180,77 +180,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     PDG_nodes[static_cast<int>(node->getNodeType())].push_back(node);
   }
 
-  int node_index = 1;
-  for (auto& enums: PDG_nodes)
-  {
-    for (auto& nodes: enums)
-    {
-      Node* node = nodes; 
-      std::string str;
-    raw_string_ostream OS(str);
-    std::string node_id = "";
-    raw_string_ostream getNodeID(node_id);
-
-    if (DEBUGZINC)
-    {
-        if (node->getValue() != nullptr)
-        errs() << "node: " << node->getNodeID() << " annotation:" << node->getAnno() <<  " - " << pdgutils::rtrim(OS.str()) << " - " << pdgutils::getNodeTypeStr(node->getNodeType()) << "\n" ;
-        else
-        errs() << "node: " << node->getNodeID() << " annotation:" << node->getAnno() << " - " <<  pdgutils::getNodeTypeStr(node->getNodeType()) << "\n" ;
-
-        if( node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
-          errs() << "Value: " << *(node->getFunc()) << "Line Number: " << node->getLineNumber() << "\n";
-
-
-    }
-
-
-    Value* val = node->getValue();
-
-    FuncWrapperMap Fwm = _PDG->getFuncWrapperMap();
-    Node* func_node = nullptr;
-    if (node->getFunc())
-    {
-      func_node = Fwm[node->getFunc()]->getEntryNode();
-    }
-   
-    
-    if (func_node != nullptr)
-    {
-      getNodeID << func_node->getNodeID();
-      // errs() << "Adding Function" << *val << "\n";
-      outputArrays["hasFunction"].push_back(getNodeID.str()); 
-    }
-    else
-    {
-      // needs to be assigned to something or minizinc will complain
-      outputArrays["hasFunction"].push_back("0"); 
-    }
-    
-
-    if (val != nullptr)
-    {
-      if (Function* f = dyn_cast<Function>(val))
-        OS << f->getName().str() << "\n";
-      else
-        OS << *val << "\n";
-    }
-
-
-    node_id = "";
-    getNodeID << node->getNodeID();
-    
-    outputEnumsPDGNode[pdgutils::getNodeTypeStr(node->getNodeType())].push_back(getNodeID.str());
-    nodeID2Node[getNodeID.str()] = node;
-    nodeID2enum[getNodeID.str()] = node_index;
-    // outputEnums["PDGNode"].push_back(getNodeID.str());
-
-    // Need to make sure that these arrays sync up with the concatinated data
-    // outputArrays["hasCle"].push_back(node->getAnno()); 
-    node_index++;
-    }
-
-  }
+  
 
   //print edges
   // outFile << "=============== Edge Set ===============\n";
@@ -273,6 +203,30 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       raw_string_ostream getDstID(dest_id);
       getSrcID << out_edge->getSrcNode()->getNodeID();
       getDstID << out_edge->getDstNode()->getNodeID();
+
+      
+      if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
+      {
+        errs() << "Warning, edges source idx became zero! \n"; 
+        errs() << "Source ID: " << getSrcID.str() << "Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+        errs() << "Dest ID: " << getDstID.str() << "Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+        
+        PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].push_back(out_edge->getSrcNode());
+        errs() << "Node: " <<  getSrcID.str() << " added. \n";
+      }
+
+      if (std::find(PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end(), out_edge->getDstNode()) == PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end())
+      {
+        errs() << "Warning, edge Dest idx became zero! \n"; 
+        errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+        errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+        
+        errs() << "Node: " <<  getDstID.str() << " added. \n";
+        PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
+      }
+
+
+
       if (out_edge->getSrcNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL)
       {
         llvm::CallInst* inst = dyn_cast<llvm::CallInst>(out_edge->getSrcNode()->getValue());
@@ -353,6 +307,78 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       
     }
+  }
+
+  int node_index = 1;
+  for (auto& enums: PDG_nodes)
+  {
+    for (auto& nodes: enums)
+    {
+      Node* node = nodes; 
+      std::string str;
+    raw_string_ostream OS(str);
+    std::string node_id = "";
+    raw_string_ostream getNodeID(node_id);
+
+    if (DEBUGZINC)
+    {
+        if (node->getValue() != nullptr)
+        errs() << "node: " << node->getNodeID() << " annotation:" << node->getAnno() <<  " - " << pdgutils::rtrim(OS.str()) << " - " << pdgutils::getNodeTypeStr(node->getNodeType()) << "\n" ;
+        else
+        errs() << "node: " << node->getNodeID() << " annotation:" << node->getAnno() << " - " <<  pdgutils::getNodeTypeStr(node->getNodeType()) << "\n" ;
+
+        if( node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+          errs() << "Value: " << *(node->getFunc()) << "Line Number: " << node->getLineNumber() << "\n";
+
+
+    }
+
+
+    Value* val = node->getValue();
+
+    FuncWrapperMap Fwm = _PDG->getFuncWrapperMap();
+    Node* func_node = nullptr;
+    if (node->getFunc())
+    {
+      func_node = Fwm[node->getFunc()]->getEntryNode();
+    }
+   
+    
+    if (func_node != nullptr)
+    {
+      getNodeID << func_node->getNodeID();
+      // errs() << "Adding Function" << *val << "\n";
+      outputArrays["hasFunction"].push_back(getNodeID.str()); 
+    }
+    else
+    {
+      // needs to be assigned to something or minizinc will complain
+      outputArrays["hasFunction"].push_back("0"); 
+    }
+    
+
+    if (val != nullptr)
+    {
+      if (Function* f = dyn_cast<Function>(val))
+        OS << f->getName().str() << "\n";
+      else
+        OS << *val << "\n";
+    }
+
+
+    node_id = "";
+    getNodeID << node->getNodeID();
+    
+    outputEnumsPDGNode[pdgutils::getNodeTypeStr(node->getNodeType())].push_back(getNodeID.str());
+    nodeID2Node[getNodeID.str()] = node;
+    nodeID2enum[getNodeID.str()] = node_index;
+    // outputEnums["PDGNode"].push_back(getNodeID.str());
+
+    // Need to make sure that these arrays sync up with the concatinated data
+    // outputArrays["hasCle"].push_back(node->getAnno()); 
+    node_index++;
+    }
+
   }
 
   int index = 1;
@@ -475,7 +501,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       std::string filename = nodeID2Node[i]->getFileName();
       int lineNumber = nodeID2Node[i]->getLineNumber();
-      errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
+      // errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
       if (outputArrays["hasFunction"][index-1] != "0")
       {
         if (filename == "" || filename == "Not Found")
@@ -545,6 +571,26 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         raw_string_ostream getDstID(dest_id);
         getSrcID << edg->getSrcNode()->getNodeID();
         getDstID << edg->getDstNode()->getNodeID();
+
+        if (nodeID2index[getSrcID.str()] == 0)
+        {
+          errs() << "Error! Source Edge ID is 0! \n";
+
+          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
+          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+          return false;
+        }
+
+        if (nodeID2index[getDstID.str()] == 0)
+        {
+          errs() << "Error! Dest Edge ID is 0! \n";
+
+          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
+          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+          return false;
+        } 
+
+        
         
         outputArrays["hasSource"].push_back(std::to_string(nodeID2index[getSrcID.str()]));
         outputArrays["hasDest"].push_back(std::to_string(nodeID2index[getDstID.str()]));
