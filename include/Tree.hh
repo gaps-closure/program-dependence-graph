@@ -38,7 +38,7 @@ namespace pdg
 
     private:
       Tree *_tree;
-      TreeNode *_parent_node;
+      TreeNode *_parent_node = nullptr;
       int _depth;
       llvm::DILocalVariable *_di_local_var;
       std::vector<TreeNode *> _children;

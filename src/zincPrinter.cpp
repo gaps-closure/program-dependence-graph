@@ -224,7 +224,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     else
     {
       // needs to be assigned to something or minizinc will complain
-      outputArrays["hasFunction"].push_back("1"); 
+      outputArrays["hasFunction"].push_back("0"); 
     }
     
 
@@ -475,13 +475,17 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       std::string filename = nodeID2Node[i]->getFileName();
       int lineNumber = nodeID2Node[i]->getLineNumber();
-      if (filename == "" || filename == "Not Found")
+      errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
+      if (outputArrays["hasFunction"][index-1] != "0")
       {
-        filename = nodeID2Node[outputArrays["hasFunction"][index-1]]->getFileName();
-      }
-      if (lineNumber = -1)
-      {
-        lineNumber = nodeID2Node[outputArrays["hasFunction"][index-1]]->getLineNumber();
+        if (filename == "" || filename == "Not Found")
+        {
+          filename = nodeID2Node[outputArrays["hasFunction"][index-1]]->getFileName();
+        }
+        if (lineNumber = -1)
+        {
+          lineNumber = nodeID2Node[outputArrays["hasFunction"][index-1]]->getLineNumber();
+        }
       }
 
 
@@ -559,14 +563,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
  std::vector<std::string> hasFunctionIndx;
  for(auto &i : outputArrays["hasFunction"])
  {
-   if (i == "1")
-   {
-     hasFunctionIndx.push_back("0");
-   }
-   else
-   {
-     hasFunctionIndx.push_back(std::to_string(nodeID2index[i]));
-   }
+   
+    hasFunctionIndx.push_back(std::to_string(nodeID2index[i]));
    
  }
  outputArrays["hasFunction"] = hasFunctionIndx;

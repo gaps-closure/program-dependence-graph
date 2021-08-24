@@ -67,8 +67,7 @@ namespace pdg
           llvm::errs() << "line number: " << _line_number << "\n";
         }
       }
-      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY
-      )
+      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY)
       {
           // llvm::Function *function = llvm::dyn_cast<llvm::Function>(_val);
           unsigned dbgKind = _func->getContext().getMDKindID("dbg");

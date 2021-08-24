@@ -15,6 +15,8 @@ pdg::TreeNode::TreeNode(DIType *di_type, int depth, TreeNode *parent_node, Tree 
   _depth = depth;
   _parent_node = parent_node;
   _tree = tree;
+  errs() << "Made tree node at arrs: " << this << "\n";
+  errs() << "Parent tree node at adrs: " << _parent_node << "\n";
 }
 
 pdg::TreeNode::TreeNode(Function &f, DIType *di_type, int depth, TreeNode *parent_node, Tree *tree, GraphNodeType node_type) : Node(node_type)
@@ -24,6 +26,8 @@ pdg::TreeNode::TreeNode(Function &f, DIType *di_type, int depth, TreeNode *paren
   _parent_node = parent_node;
   _tree = tree;
   _func = &f;
+  errs() << "Made tree node at adrs: " << this << "\n";
+  errs() << "Parent tree node at adrs: " << _parent_node << "\n";
 }
 
 int pdg::TreeNode::expandNode()
@@ -40,7 +44,9 @@ int pdg::TreeNode::expandNode()
   if (dbgutils::isPointerType(*dt))
   {
     DIType* pointed_obj_dt = dbgutils::getLowestDIType(*dt);
-    TreeNode *new_child_node = new TreeNode(*_func, pointed_obj_dt, _depth + 1, this, _tree, getNodeType());
+    TreeNode* parentNode = this;
+    errs() << "Address of this node: " << parentNode << "\n";
+    TreeNode *new_child_node = new TreeNode(*_func, pointed_obj_dt, _depth + 1, parentNode, _tree, getNodeType());
     new_child_node->computeDerivedAddrVarsFromParent();
     _children.push_back(new_child_node);
     this->addNeighbor(*new_child_node, EdgeType::PARAMETER_FIELD);
@@ -53,7 +59,8 @@ int pdg::TreeNode::expandNode()
     for (unsigned i = 0; i < di_node_arr.size(); i++)
     {
       DIType *field_di_type = dyn_cast<DIType>(di_node_arr[i]);
-      TreeNode *new_child_node = new TreeNode(*_func, field_di_type, _depth + 1, this, _tree, getNodeType());
+      TreeNode* parentNode = this;
+      TreeNode *new_child_node = new TreeNode(*_func, field_di_type, _depth + 1, parentNode, _tree, getNodeType());
       new_child_node->computeDerivedAddrVarsFromParent();
       _children.push_back(new_child_node);
       this->addNeighbor(*new_child_node, EdgeType::PARAMETER_FIELD);
@@ -72,9 +79,11 @@ void pdg::TreeNode::computeDerivedAddrVarsFromParent()
     return;
   std::unordered_set<llvm::Value *> base_node_addr_vars;
   // handle struct pointer
-  auto grand_parent_node = _parent_node->getParentNode();
-  // TODO: now hanlde struct specifically, but should also verify on other aggregate pointer types
-  if (grand_parent_node != nullptr && dbgutils::isStructType(*_parent_node->getDIType()) && dbgutils::isStructPointerType(*grand_parent_node->getDIType()))
+  TreeNode* grand_parent_node = _parent_node->getParentNode();
+  // TODO: now handle struct specifically, but should also verify on other aggregate pointer types
+  errs() << "Parent Node: " <<  _parent_node << "\n";
+  errs() << "Grand Parent Node: " <<  grand_parent_node << "\n";
+  if (_parent_node != nullptr && grand_parent_node != nullptr && _parent_node->getDIType() != nullptr && grand_parent_node->getDIType() != nullptr && dbgutils::isStructType(*_parent_node->getDIType()) && dbgutils::isStructPointerType(*grand_parent_node->getDIType()))
   {
     base_node_addr_vars = grand_parent_node->getAddrVars();
   }
