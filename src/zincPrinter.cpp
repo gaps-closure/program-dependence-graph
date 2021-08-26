@@ -130,10 +130,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::ofstream outFile;
   std::ofstream dbgFile;
   std::ofstream node2line;
+  std::ofstream funFile;
 
   outFile.open ("pdg_instance.mzn");
   dbgFile.open ("pdg_data.csv");
   node2line.open ("node2lineNumber.txt");
+  funFile.open ("functionArgs.txt");
 
   for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
   {
@@ -332,7 +334,17 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
 
     }
-
+    if( node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+    {
+      int numArgs = 0;
+      for (auto arg_iter = node->getFunc()->arg_begin(); arg_iter != node->getFunc()->arg_end(); arg_iter++)
+      {
+        numArgs++;
+      }
+      if (node->getAnno() != "None")
+        funFile << node->getAnno() << " " << numArgs << "\n";
+    }
+    
 
     Value* val = node->getValue();
 
@@ -712,6 +724,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   outFile.close();
   dbgFile.close();
   node2line.close();
+  funFile.close();
 }
 
 
