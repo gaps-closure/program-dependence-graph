@@ -398,6 +398,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   // outFile << "PDGNodes" << " = [ ";
  
   bool first = true;
+  int index_a = 1;
+  int class_idx = 0;
+  int super_class_start = 1;
+  int super_class_end = -1;
+  int max_node_idx = 1;
   for(auto &id : nodeOrder)
   {
     for(auto const& i : outputEnumsPDGNode[id]) {
@@ -409,16 +414,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       nodeID2index[i] = index;
       index++;
     } 
-  }
-  // outFile << "];   \n ";
 
-  index = 1;
-  int class_idx = 0;
-  int super_class_start = 1;
-  int super_class_end = -1;
-  int max_node_idx = 1;
-  for(auto &id : nodeOrder)
-  {
     if (class_idx == 4 || class_idx == 9 || class_idx == 15 || class_idx == 19)
     {
       outFile  << id << "_start" << " = " << super_class_start << ";\n";
@@ -429,20 +425,20 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       continue;
     }
     // Need to subtract 1 because minizinc is inclusive of right index
-    int endIdx = index + outputEnumsPDGNode[id].size() -1;
-    if (endIdx < index)
+    int endIdx = index_a + outputEnumsPDGNode[id].size() -1;
+    if (endIdx < index_a)
     {
       outFile << id << "_start" << " = 0;\n";
       outFile << id << "_end" << " = -1;\n";
     }
     else
     {
-      outFile << id << "_start" << " = " << index << ";\n";
+      outFile << id << "_start" << " = " << index_a << ";\n";
       outFile << id << "_end" << " = " << endIdx << ";\n";
       // Need to progress to next set
       super_class_end = endIdx;
       max_node_idx = endIdx;
-      index = endIdx + 1;
+      index_a = endIdx + 1;
       // fix for function entry since it does not have any subclasses
       if (class_idx == 10)
       {
@@ -458,10 +454,17 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::vector<bool> hasFuncAnno;
 
 
-  index = 1;
+  int index_c = 1;
   for(auto &id : nodeOrder)
   {
     for(auto const& i : outputEnumsPDGNode[id]) {
+
+      Node* node = nodeID2Node[i];
+      if(node->getAnno() != "None")
+      {
+        outFile <<  "constraint ::  \"TaintOnNodeIdx" << nodeID2index[i]  << "\" taint[" << nodeID2index[i] << "]=" << node->getAnno() << ";\n"; 
+      }
+
       std::string valueStr;
       std::string nameStr;
       if (nodeID2Node[i]->getValue() == nullptr)
@@ -513,23 +516,23 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       std::string filename = nodeID2Node[i]->getFileName();
       int lineNumber = nodeID2Node[i]->getLineNumber();
-      // errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
-      if (outputArrays["hasFunction"][index-1] != "0")
+      // errs() << "hasFunction ID" << outputArrays["hasFunction"][index_c-1] << "Value: " <<valueStr << "\n";
+      if (outputArrays["hasFunction"][index_c-1] != "0")
       {
         if (filename == "" || filename == "Not Found")
         {
-          filename = nodeID2Node[outputArrays["hasFunction"][index-1]]->getFileName();
+          filename = nodeID2Node[outputArrays["hasFunction"][index_c-1]]->getFileName();
         }
         if (lineNumber == -1)
         {
-          lineNumber = nodeID2Node[outputArrays["hasFunction"][index-1]]->getLineNumber();
+          lineNumber = nodeID2Node[outputArrays["hasFunction"][index_c-1]]->getLineNumber();
         }
       }
 
 
-      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
-      node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
-      index++;
+      dbgFile << "Node, " << index_c << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index_c-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+      node2line << index_c << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
+      index_c++;
     } 
   }
   
@@ -538,6 +541,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   super_class_start = 1;
   super_class_end = -1;
   int max_edge_idx = 1; 
+  int index_d = 1;
   for(auto &id : edgeOrder)
   {
     if (class_idx == 5 || class_idx == 10 || class_idx == 14 || class_idx == 18)
@@ -565,13 +569,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       index = endIdx + 1;
     }
     class_idx++;
-  }
-  outFile << "PDGEdge_start = 1;\n";
-  outFile << "PDGEdge_end" << " = " << max_edge_idx << ";\n";
 
-  index = 1;
-  for(auto &id : edgeOrder)
-  {
      for(auto const &i : outputEnumsPDGEdge[id] )
      {
         Edge* edg = edgeID2Edge[i];
@@ -607,16 +605,15 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         outputArrays["hasSource"].push_back(std::to_string(nodeID2index[getSrcID.str()]));
         outputArrays["hasDest"].push_back(std::to_string(nodeID2index[getDstID.str()]));
      }
-  }
-
-  index = 1;
-  for(auto &id : edgeOrder)
-  {
-    for(auto const& i : outputEnumsPDGEdge[id]) {
-      dbgFile << "Edge, " << index << ", " << id << ", " << i << ", na, na, " << outputArrays["hasSource"][index-1] << ", " << outputArrays["hasDest"][index-1] << ", na, na, na" << "\n";
-      index++;
+     for(auto const& i : outputEnumsPDGEdge[id]) {
+      dbgFile << "Edge, " << index_d << ", " << id << ", " << i << ", na, na, " << outputArrays["hasSource"][index_d-1] << ", " << outputArrays["hasDest"][index_d-1] << ", na, na, na" << "\n";
+      index_d++;
     } 
   }
+
+  outFile << "PDGEdge_start = 1;\n";
+  outFile << "PDGEdge_end" << " = " << max_edge_idx << ";\n";
+
 
  std::vector<std::string> hasFunctionIndx;
  for(auto &i : outputArrays["hasFunction"])
@@ -704,16 +701,16 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   outFile << "MaxFuncParms = " <<  maxParam << ";\n";
   
   
-  for(auto &id : nodeOrder)
-  {
-    for(auto const& i : outputEnumsPDGNode[id]) {
-      Node* node = nodeID2Node[i];
-      if(node->getAnno() != "None")
-      {
-        outFile <<  "constraint ::  \"TaintOnNodeIdx" << nodeID2index[i]  << "\" taint[" << nodeID2index[i] << "]=" << node->getAnno() << ";\n"; 
-      }
-    } 
-  }
+  // for(auto &id : nodeOrder)
+  // {
+  //   for(auto const& i : outputEnumsPDGNode[id]) {
+  //     Node* node = nodeID2Node[i];
+  //     if(node->getAnno() != "None")
+  //     {
+  //       outFile <<  "constraint ::  \"TaintOnNodeIdx" << nodeID2index[i]  << "\" taint[" << nodeID2index[i] << "]=" << node->getAnno() << ";\n"; 
+  //     }
+  //   } 
+  // }
 
 
 
